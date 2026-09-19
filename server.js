@@ -9,6 +9,9 @@ import bcrypt from 'bcrypt';
 // a mettre dans un .env quand le site va etre deploye
 const JWT_SECRET = 'QwErTy123$';
 
+// pour le hashage de mot de pass
+const SALT_ROUNDS = 10;
+
 const app = express();
 
 // middlewares
@@ -95,9 +98,8 @@ app.post('/api/login', async (req, res) => {
 
     const joueur = rows[0];
 
-    // verifier le mot de passe (pour l'instant ils ne sont pas hashes)
-    // on va utiliser bcrypt plus tard
-    const mdpValide = mot_de_passe === joueur.hash_mdp;
+    // verifier le mot de passe hasher avec bcrypt
+    const mdpValide = await bcrypt.compare(mot_de_passe, joueur.hash_mdp);
     if (!mdpValide) {
       return res.status(401).json({ message: "Identifiants invalides" });
     }
@@ -131,6 +133,31 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// creation du compte d'un joueur
+app.post('/api/register', async(req, res) => {
+  let conn;
+  try {
+    const { alias, nom, prenom, adresse_courriel, mot_de_passe } = req.body;
+    const hashedPassword = await bcrypt.hash(mot_de_passe, SALT_ROUNDS);
+
+    conn = await getConnection();
+
+    await conn.query(
+      'INSERT INTO joueurs (alias, nom, prenom, adresse_courriel, hash_mdp) VALUES (?, ?, ?, ?, ?)',
+      [alias, nom, prenom, adresse_courriel, hashedPassword]
+    );
+
+    res.status(201).json({ message: "Joueur cree avec succes" });
+  }
+  catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erreur lors de la creation de compte" })
+  }
+  finally {
+    if (conn) conn.release();
+  }
+})
+
 // select un joueur selon le id passe en parametre
 app.get('/api/joueurs/:id', async (req, res) => {
   let conn;
@@ -158,3 +185,4 @@ app.get('/api/joueurs/:id', async (req, res) => {
 app.listen(5000, () => {
   console.log("Serveur backend démarré sur http://localhost:5000");
 });
+
