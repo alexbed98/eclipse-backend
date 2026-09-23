@@ -5,7 +5,8 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
@@ -18,5 +19,13 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "mariadb": "^3.5.4"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexbed98/eclipse-backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/alexbed98/eclipse-backend/issues"
+  },
+  "homepage": "https://github.com/alexbed98/eclipse-backend#readme"
 }
