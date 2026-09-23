@@ -9,10 +9,17 @@ import bcrypt from 'bcrypt';
 // a mettre dans un .env quand le site va etre deploye
 const JWT_SECRET = 'QwErTy123$';
 
+// pour le hashage de mot de pass
+const SALT_ROUNDS = 10;
+
 const app = express();
 
 // middlewares
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173', // Remplace par l'URL/port de ton React
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // middleware qui verifie le token de connexion
@@ -31,11 +38,11 @@ function checkToken(req, res, next) {
   // verification du token avec la cle secrete
   jwt.verify(token, JWT_SECRET, (err, payload) => {
     if (err) {
-      return res.status(403).json({ message: "Token invalide ou expire"});
+      return res.status(403).json({ message: "Token invalide ou expire" });
     }
 
     // payload contient { id, email } (defini lors du jwt.sign())
-    req.joueur = payload;
+    req.user = payload;
 
     // pour passer au middleware ou la route suivante
     next();
@@ -46,13 +53,13 @@ function checkToken(req, res, next) {
 app.get('/api/me', checkToken, async (req, res) => {
   let conn;
   try {
-    const joueurId = req.joueur.id;
+    const userId = req.user.id;
 
     conn = await getConnection();
 
     const rows = await conn.query(
       'SELECT id, alias, prenom, nom, adresse_courriel, nbPiece, est_admin FROM Joueurs WHERE id = ?',
-      [joueurId]
+      [userId]
     );
 
     if (!rows[0]) {
@@ -95,9 +102,8 @@ app.post('/api/login', async (req, res) => {
 
     const joueur = rows[0];
 
-    // verifier le mot de passe (pour l'instant ils ne sont pas hashes)
-    // on va utiliser bcrypt plus tard
-    const mdpValide = mot_de_passe === joueur.hash_mdp;
+    // verifier le mot de passe hasher avec bcrypt
+    const mdpValide = await bcrypt.compare(mot_de_passe, joueur.hash_mdp);
     if (!mdpValide) {
       return res.status(401).json({ message: "Identifiants invalides" });
     }
@@ -130,6 +136,76 @@ app.post('/api/login', async (req, res) => {
     if (conn) conn.release();
   }
 });
+
+// creation du compte d'un joueur
+app.post('/api/register', async (req, res) => {
+  let conn;
+  try {
+    const { alias, nom, prenom, adresse_courriel, mot_de_passe } = req.body;
+    const hashedPassword = await bcrypt.hash(mot_de_passe, SALT_ROUNDS);
+
+    conn = await getConnection();
+
+    await conn.query(
+      'INSERT INTO joueurs (alias, nom, prenom, adresse_courriel, hash_mdp) VALUES (?, ?, ?, ?, ?)',
+      [alias, nom, prenom, adresse_courriel, hashedPassword]
+    );
+
+    res.status(201).json({ message: "Joueur cree avec succes" });
+  }
+  catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erreur lors de la creation de compte" })
+  }
+  finally {
+    if (conn) conn.release();
+  }
+})
+
+// modification du profil d'un joueur
+app.put('/api/profile', checkToken, async (req, res) => {
+  let conn;
+  try {
+    const { alias, nom, prenom, adresse_courriel, mot_de_passe } = req.body;
+    const userId = req.user.id;
+
+    conn = await getConnection();
+
+    if (mot_de_passe) {
+      const hashedPassword = await bcrypt.hash(mot_de_passe, SALT_ROUNDS);
+
+      await conn.query(
+        'UPDATE joueurs SET alias = ?, nom = ?, prenom = ?, adresse_courriel = ?, hash_mdp = ? WHERE id = ?',
+        [alias, nom, prenom, adresse_courriel, hashedPassword, userId]
+      );
+    }
+    else {
+      await conn.query(
+        'UPDATE joueurs SET alias = ?, nom = ?, prenom = ?, adresse_courriel = ? WHERE id = ?',
+        [alias, nom, prenom, adresse_courriel, userId]
+      );
+    }
+
+    const rows = await conn.query(
+      'SELECT id, alias, nom, prenom, adresse_courriel FROM joueurs WHERE id = ?',
+      [userId]
+    );
+
+    const updatedUser = rows[0];
+
+    res.status(200).json({ 
+      message: "Profil modifie avec succes",
+      player: updatedUser
+     });
+  }
+  catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erreur lors de la modification de profil" })
+  }
+  finally {
+    if (conn) conn.release();
+  }
+})
 
 // select un joueur selon le id passe en parametre
 app.get('/api/joueurs/:id', async (req, res) => {
