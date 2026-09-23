@@ -230,12 +230,6 @@ app.get('/api/joueurs/:id', async (req, res) => {
   }
 });
 
-// Lancement du serveur express sur le port 5000
-app.listen(5000, () => {
-  console.log("Serveur backend démarré sur http://localhost:5000");
-});
-
-
 // Faire apparaître les cartes dans la section collection
 app.get('/api/collection/:id', async (req, res) => {
   let conn;
@@ -297,4 +291,9 @@ app.get('/api/inventory/details/:id', async (req, res) => {
   finally {
     if (conn) conn.release();
   }
+});
+
+// Lancement du serveur express sur le port 5000
+app.listen(5000, () => {
+  console.log("Serveur backend démarré sur http://localhost:5000");
 });
