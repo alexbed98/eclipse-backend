@@ -158,3 +158,67 @@ app.get('/api/joueurs/:id', async (req, res) => {
 app.listen(5000, () => {
   console.log("Serveur backend démarré sur http://localhost:5000");
 });
+
+
+// Faire apparaître les cartes dans la section collection
+app.get('/api/collection/:id', async (req, res) => {
+  let conn;
+
+  try{
+    const joueurId = req.params.id;
+    conn = await getConnection();
+    const rows = await conn.query(
+      'SELECT cartes.*, COALESCE(collections.quantite, 0) AS quantite from cartes LEFT JOIN collections ON cartes.id = collections.id_carte AND  collections.id_joueur = ?',
+      [joueurId]
+    )
+      res.json(rows);
+  } catch (error){
+      console.error("Erreur SQL:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+})
+
+
+app.get('/api/shop', async (req, res) => {
+  let conn;
+
+  try{
+    conn = await getConnection();
+    const rows = await conn.query(
+      'SELECT * FROM paquets'
+    )
+    res.json(rows);
+  } catch (error){
+      console.error("Erreur SQL:", error);
+      res.status(500).json({ error: "Erreur serveur!" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+
+})
+
+// Obtention des détails d'une carte
+app.get('/api/inventory/details/:id', async (req, res) => {
+  let conn;
+
+  try{
+    const carteId = req.params.id;
+    conn = await getConnection();
+    const rows = await conn.query(
+      `SELECT cartes.*, COALESCE(collections.quantite, 0) AS quantite  FROM cartes 
+      LEFT JOIN collections ON cartes.id = collections.id_carte  WHERE id = ?`, [carteId]
+    )
+    res.json(rows[0]);
+  }
+  catch (err) {
+    console.error("Erreur SQL:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+});
