@@ -272,17 +272,118 @@ app.get('/api/shop', async (req, res) => {
 })
 
 // Obtention des détails d'une carte
-app.get('/api/inventory/details/:id', async (req, res) => {
+app.get('/api/inventory/details/:id/:joueurId', async (req, res) => {
   let conn;
 
   try{
     const carteId = req.params.id;
+    const joueurId = req.params.joueurId;
     conn = await getConnection();
     const rows = await conn.query(
       `SELECT cartes.*, COALESCE(collections.quantite, 0) AS quantite  FROM cartes 
-      LEFT JOIN collections ON cartes.id = collections.id_carte  WHERE id = ?`, [carteId]
+      LEFT JOIN collections ON cartes.id = collections.id_carte AND collections.id_joueur = ?  WHERE id = ?`, [joueurId, carteId]
     )
     res.json(rows[0]);
+  }
+  catch (err) {
+    console.error("Erreur SQL:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+});
+
+
+// Récupération du nombre de pièce d'un joueur
+app.get('/api/shop/:id', async (req, res) => {
+  let conn;
+  try {
+    const joueurId = req.params.id;
+    conn = await getConnection();
+
+    const rows = await conn.query(
+      'SELECT nbPiece FROM Joueurs WHERE id = ?',
+      [joueurId]
+    );
+
+    res.json(rows[0]);
+  }
+  catch (err) {
+    console.error("Erreur SQL:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+});
+
+app.get('/api/shop/:id/:currency/:idBooster', async (req, res) => {
+  let conn;
+  try{
+    const joueurId = req.params.id;
+    const currency = req.params.currency
+    const idBooster = req.params.idBooster
+
+    conn = await getConnection();
+
+    // Partie concernant la gestion de currency du joueur
+    const rows = await conn.query(
+      'SELECT nbPiece FROM Joueurs Where id = ?',
+      [joueurId]
+    );
+
+    const joueurCurrency = rows[0].nbPiece
+
+    if(joueurCurrency >= currency){
+      const rowUpdated = await conn.query(
+        'UPDATE Joueurs SET nbPiece = nbPiece - ? WHERE id = ?',
+        [currency, joueurId]
+      );
+
+    // Partie concernant les cartes à ajouter au joueur suite à son achat
+    const boosterCards = await conn.query(
+      'SELECT * FROM paquets_cartes WHERE id_paquet = ?',
+      [idBooster]
+    );
+
+    const cardsObtained = [];
+    
+    for(let i = 0; i < 10; i++){
+
+      const number = Math.random();
+      
+      let probability = 0
+      
+      for(const card of boosterCards){
+        probability += Number(card.probabilite);
+
+        if(number < probability){
+          cardsObtained.push(card.id_carte);
+          break;
+        }
+      }
+    }
+
+    for(let i = 0; i < cardsObtained.length; i++){
+      await conn.query(
+        `CALL ajouter_carte(${joueurId}, ${cardsObtained[i]})`
+      )
+    }
+    
+      res.json({
+        success: true,
+        message: "Achat effectué",
+        updatedCurrency: joueurCurrency - currency,
+        cardsObtained: cardsObtained
+      });
+    }
+    else{
+      res.json({
+        success: false,
+        message: "Pas assez de pièces"
+      });
+    }
   }
   catch (err) {
     console.error("Erreur SQL:", err);
