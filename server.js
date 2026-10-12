@@ -409,6 +409,7 @@ app.get('/api/market', async (req, res) => {
         c.id AS id_card,
         c.nom AS card_name,
         c.id_rarete AS id_rarity,
+        c.id_serie AS id_serie,
         j.id AS id_seller,
         j.alias AS seller_username 
       FROM Marche m
