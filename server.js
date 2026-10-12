@@ -459,7 +459,8 @@ app.delete('/api/market/:id', async (req, res) => {
     res.status(200).json({ message: "Vente retirée du marché avec succès"});
   }
   catch (err) {
-
+    console.error("Erreur SQL:", err);
+    res.status(500).json({ message: "Erreur du serveur lors du retrait du marché" });
   }
   finally {
     if (conn) conn.release();
