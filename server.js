@@ -424,8 +424,47 @@ app.get('/api/market', async (req, res) => {
   finally {
     if (conn) conn.release();
   }
-})
+});
 
+// Pour mettre une carte en vente sur le marché
+app.post('/api/market/sell', async (req, res) => {
+  const { joueur, carte, quantiteAjoutee, nouveauPrix } = req.body;
+  let conn;
+
+  try {
+    conn = await getConnection();
+    await conn.query('CALL vendre_carte(?, ?, ? ,?)', [ joueur, carte, quantiteAjoutee, nouveauPrix]);
+    res.status(200).json({ message: "Vente réussie" });
+  }
+  catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erreur serveur lors de la vente" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+
+});
+
+// Pour retirer une carte en vente sur le marché
+app.delete('/api/market/:id', async (req, res) => {
+  const saleId = req.params.id;
+  let conn;
+
+  try {
+    conn = await getConnection();
+
+    await conn.query('CALL retirer_carte(?)', [saleId]);
+
+    res.status(200).json({ message: "Vente retirée du marché avec succès"});
+  }
+  catch (err) {
+
+  }
+  finally {
+    if (conn) conn.release();
+  }
+})
 
 // Lancement du serveur express sur le port 5000
 app.listen(5000, () => {
