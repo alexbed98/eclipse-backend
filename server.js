@@ -1,13 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import { getConnection } from './db.js';
+import 'dotenv/config';
 
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 
-// cle secrete pour signer les token (a changer)
-// a mettre dans un .env quand le site va etre deploye
-const JWT_SECRET = 'QwErTy123$';
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // pour le hashage de mot de pass
 const SALT_ROUNDS = 10;
@@ -16,7 +16,7 @@ const app = express();
 
 // middlewares
 app.use(cors({
-  origin: 'http://localhost:5173', // Remplace par l'URL/port de ton React
+  origin: ['http://localhost:5173', 'http://158.69.48.57'], 
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
