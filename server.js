@@ -479,6 +479,77 @@ app.get('/api/deckDetails/:id', async (req, res) => {
   }
 })
 
+// Faire apparaître les cartes en ventes sur le marché
+app.get('/api/market', async (req, res) => {
+  let conn;
+
+  try{
+    conn = await getConnection();
+    const rows = await conn.query(
+      `SELECT 
+        m.id AS id_sale,
+        m.prix AS sale_price,
+        m.quantite AS sale_qty,
+        c.id AS id_card,
+        c.nom AS card_name,
+        c.id_rarete AS id_rarity,
+        c.id_serie AS id_serie,
+        j.id AS id_seller,
+        j.alias AS seller_username 
+      FROM Marche m
+      JOIN Cartes c ON m.id_carte = c.id
+      JOIN Joueurs j ON m.id_joueur = j.id;`
+    )
+      res.json(rows);
+  } catch (error){
+      console.error("Erreur SQL:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+});
+
+// Pour mettre une carte en vente sur le marché
+app.post('/api/market/sell', async (req, res) => {
+  const { joueur, carte, quantiteAjoutee, nouveauPrix } = req.body;
+  let conn;
+
+  try {
+    conn = await getConnection();
+    await conn.query('CALL vendre_carte(?, ?, ? ,?)', [ joueur, carte, quantiteAjoutee, nouveauPrix]);
+    res.status(200).json({ message: "Vente réussie" });
+  }
+  catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erreur serveur lors de la vente" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+
+});
+
+// Pour retirer une carte en vente sur le marché
+app.delete('/api/market/:id', async (req, res) => {
+  const saleId = req.params.id;
+  let conn;
+
+  try {
+    conn = await getConnection();
+
+    await conn.query('CALL retirer_carte(?)', [saleId]);
+
+    res.status(200).json({ message: "Vente retirée du marché avec succès"});
+  }
+  catch (err) {
+    console.error("Erreur SQL:", err);
+    res.status(500).json({ message: "Erreur du serveur lors du retrait du marché" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+})
 
 // Lancement du serveur express sur le port 5000
 app.listen(5000, () => {
