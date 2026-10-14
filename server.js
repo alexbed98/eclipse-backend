@@ -394,6 +394,10 @@ app.get('/api/shop/:id/:currency/:idBooster', async (req, res) => {
   }
 });
 
+// Récupération des decks du joueur
+app.get('/api/decks/:id', async (req,res) => {
+  let conn;
+  const joueurId = req.params.id;
 
 // Faire apparaître les cartes en ventes sur le marché
 app.get('/api/market', async (req, res) => {
@@ -402,6 +406,12 @@ app.get('/api/market', async (req, res) => {
   try{
     conn = await getConnection();
     const rows = await conn.query(
+      'SELECT * FROM decks WHERE id_joueur = ?', [joueurId]
+    )
+    res.json(rows);
+  } catch (error){
+      console.error("Erreur SQL:", error);
+      res.status(500).json({ error: "Erreur serveur!" });
       `SELECT 
         m.id AS id_sale,
         m.prix AS sale_price,
@@ -424,6 +434,21 @@ app.get('/api/market', async (req, res) => {
   finally {
     if (conn) conn.release();
   }
+})
+
+// Récupération des cartes dans un deck d'un joueur
+app.get('/api/deck/cartes/:idDeck', async (req, res) => {
+  let conn;
+  const idDeck = req.params.idDeck;
+
+  try{
+    conn = await getConnection();
+    const rows = await conn.query(
+      'SELECT decks_cartes.*, decks.nom FROM decks_cartes INNER JOIN decks ON decks_cartes.id_deck = decks.id WHERE id_deck = ?', [idDeck])
+      res.json(rows);
+  } catch(error){
+      console.error("Erreur SQL:", error);
+      res.status(500).json({ error: "Erreur serveur!" });
 });
 
 // Pour mettre une carte en vente sur le marché
@@ -443,6 +468,49 @@ app.post('/api/market/sell', async (req, res) => {
   finally {
     if (conn) conn.release();
   }
+})
+
+
+// Ajout d'une carte dans un deck
+app.get('/api/deck/cartes/:idCarte', async () => {
+  let conn;
+  let idCarte = req.params.idCarte;
+  try{
+    conn = await getConnection();
+
+    /* Il manque de la validation ici avant de faire le insert. Il faut récupérer la quantité de chacune des cartes que le joueur
+       possède afin de s'assurer que le joueur ne peut pas ajouter plus de cartes qu'il en possède. (Exemple: il veut ajouter
+       une carte 3 fois dans son deck alors qu'il en possède seulement 1) */
+
+
+
+    const rows = await conn.query(
+      `INSERT INTO decks_cartes (id_carte, quantite) VALUES (${idCarte}, 1)`, [idCarte])
+      res.json(rows);
+  } catch(error){
+      console.error("Erreur SQL:", error);
+      res.status(500).json({ error: "Erreur serveur!" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+})
+
+
+app.get('/api/deckDetails/:id', async (req, res) => {
+  let conn;
+
+  try{
+    const joueurId = req.params.id;
+    conn = await getConnection();
+    const rows = await conn.query(
+      'SELECT cartes.*, COALESCE(collections.quantite, 0) AS quantite from cartes INNER JOIN collections ON cartes.id = collections.id_carte AND  collections.id_joueur = ?',
+      [joueurId]
+    )
+      res.json(rows);
+  } catch (error){
+      console.error("Erreur SQL:", error);
+      res.status(500).json({ error: "Erreur serveur" });
 
 });
 
@@ -466,6 +534,8 @@ app.delete('/api/market/:id', async (req, res) => {
     if (conn) conn.release();
   }
 })
+
+
 
 // Lancement du serveur express sur le port 5000
 app.listen(5000, () => {
