@@ -551,6 +551,26 @@ app.delete('/api/market/:id', async (req, res) => {
   }
 })
 
+// Pour acheter une carte dans le marché
+app.post('/api/market/buy', checkToken, async (req, res) => {
+  const { saleId, quantity } = req.body;
+  const buyerId = req.user.id;
+  let conn;
+
+  try {
+    conn = await getConnection();
+    await conn.query('CALL acheter_carte(?, ?, ?)', [buyerId, saleId, quantity]);
+    res.status(200).json({ message: 'Achat effectué avec succès!' });
+  }
+  catch (err) {
+    console.error("Erreur lors de l'achat sur le marché", err);
+    res.status(500).json({ message: err.message || "Erreur du serveur lors de l'achat sur le marché" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+});
+
 // Lancement du serveur express sur le port 5000
 app.listen(5000, () => {
   console.log("Serveur backend démarré sur http://localhost:5000");
