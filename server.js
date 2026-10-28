@@ -341,36 +341,36 @@ app.get('/api/shop/:id/:currency/:idBooster', async (req, res) => {
         [currency, joueurId]
       );
 
-    // Partie concernant les cartes à ajouter au joueur suite à son achat
-    const boosterCards = await conn.query(
-      'SELECT * FROM paquets_cartes WHERE id_paquet = ?',
-      [idBooster]
-    );
+      // Partie concernant les cartes à ajouter au joueur suite à son achat
+      const boosterCards = await conn.query(
+        'SELECT * FROM paquets_cartes WHERE id_paquet = ?',
+        [idBooster]
+      );
 
-    const cardsObtained = [];
-    
-    for(let i = 0; i < 10; i++){
+      const cardsObtained = [];
+        
+      for(let i = 0; i < 10; i++){
 
-      const number = Math.random();
-      
-      let probability = 0
-      
-      for(const card of boosterCards){
-        probability += Number(card.probabilite);
+        const number = Math.random();
+          
+        let probability = 0
+          
+        for(const card of boosterCards){
+          probability += Number(card.probabilite);
 
-        if(number < probability){
-          cardsObtained.push(card.id_carte);
-          break;
+          if(number < probability){
+            cardsObtained.push(card.id_carte);
+            break;
+          }
         }
       }
-    }
 
-    for(let i = 0; i < cardsObtained.length; i++){
-      await conn.query(
-        `CALL ajouter_carte(${joueurId}, ${cardsObtained[i]})`
-      )
-    }
-    
+      for(let i = 0; i < cardsObtained.length; i++){
+        await conn.query(
+          `CALL ajouter_carte(${joueurId}, ${cardsObtained[i]})`
+        )
+      }
+        
       res.json({
         success: true,
         message: "Achat effectué",
@@ -434,21 +434,71 @@ app.get('/api/deck/cartes/:idDeck', async (req, res) => {
 })
 
 // Ajout d'une carte dans un deck
-app.get('/api/deck/cartes/:idCarte', async () => {
+app.get('/api/deck/cartes/:idCarte/:idDeck', async (req, res) => {
   let conn;
-  let idCarte = req.params.idCarte;
+  const idDeck = req.params.idDeck;
+  const idCarte = req.params.idCarte;
   try{
     conn = await getConnection();
 
-    /* Il manque de la validation ici avant de faire le insert. Il faut récupérer la quantité de chacune des cartes que le joueur
-       possède afin de s'assurer que le joueur ne peut pas ajouter plus de cartes qu'il en possède. (Exemple: il veut ajouter
-       une carte 3 fois dans son deck alors qu'il en possède seulement 1) */
+    await conn.query(
+      `CALL ajouter_carte_deck(${idDeck}, ${idCarte})`
+    )
 
+    return res.status(200).json({ message: "Carte ajoutée au deck avec succès" });
 
+  } catch(error){
+      console.error("Erreur SQL:", error);
+      if (error.code === 'ER_SIGNAL_EXCEPTION') {
 
-    const rows = await conn.query(
-      `INSERT INTO decks_cartes (id_carte, quantite) VALUES (${idCarte}, 1)`, [idCarte])
-      res.json(rows);
+        let codeError;
+
+        switch (error.sqlMessage){
+          case 'Impossible : maximum de 2 copies de cette carte.':
+            codeError = "MAX_COPIES"
+            break;
+
+          case 'Impossible : le deck contient déjà 20 cartes.':
+            codeError = "DECK_FULL"
+            break;
+
+          case 'Impossible : vous ne possédez pas assez de copies de cette carte.':
+            codeError = "INSUFFICIENT_COPIES"
+            break;
+
+          default:
+            codeError = "ERROR";
+        }
+
+        return res.status(400).json({
+            code: codeError,
+            message: error.sqlMessage
+        });
+      }
+      return res.status(500).json({
+        code: "SERVER_ERROR",
+        message: "Erreur serveur!"
+      });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+})
+
+// Retirer une carte d'un deck
+app.get('/api/deck/cartes/retirer/:idCarte/:idDeck', async (req, res) => {
+  let conn;
+  const idDeck = req.params.idDeck;
+  const idCarte = req.params.idCarte;
+  try{
+    conn = await getConnection();
+
+    await conn.query(
+      `CALL retirer_carte_deck(${idDeck}, ${idCarte})`
+    )
+
+    return res.status(200).json({ message: "Carte retirée du deck avec succès" });
+
   } catch(error){
       console.error("Erreur SQL:", error);
       res.status(500).json({ error: "Erreur serveur!" });
@@ -458,6 +508,85 @@ app.get('/api/deck/cartes/:idCarte', async () => {
   }
 })
 
+// Créer un deck
+app.get('/api/decks/:id/:deckTitle', async (req, res) => {
+  let conn;
+  const idJoueur = req.params.id;
+  const deckTitle = req.params.deckTitle;
+  try{
+    conn = await getConnection();
+
+    await conn.query(
+      `INSERT INTO decks (id_joueur, nom) VALUES (?, ?)`, [idJoueur, deckTitle]
+    )
+
+    return res.status(200).json({ message: "Deck créé avec succès" });
+
+  } catch(error){
+      console.error("Erreur SQL:", error);
+      res.status(500).json({ error: "Erreur serveur!" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+})
+
+// Effacer un deck
+app.get('/api/deckDetails/delete/:id', async (req, res) => {
+  let conn;
+  const idDeck = req.params.id;
+
+  try{
+    conn = await getConnection();
+    await conn.beginTransaction();
+
+    await conn.query(
+      'DELETE FROM decks_cartes WHERE id_deck = ?', [idDeck]
+    );
+
+    await conn.query(
+      'DELETE FROM decks WHERE id = ?', [idDeck]
+    );
+
+    await conn.commit();
+
+    return res.status(200).json({ message: "Deck effacé avec succès" });
+
+  } catch(error){
+      if (conn) {
+        await conn.rollback();
+      }
+      console.error("Erreur SQL:", error);
+      res.status(500).json({ error: "Erreur serveur!" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+})
+
+// Récupérer le nom du deck
+app.get('/api/deckDetails/name/:id', async (req, res) => {
+  let conn;
+
+  const idDeck = req.params.id;
+
+  try{
+    conn = await getConnection();
+
+    const rows = await conn.query(
+      `SELECT nom FROM decks WHERE id = ?`, [idDeck]
+    )
+
+    res.json(rows[0]);
+
+  } catch(error){
+      console.error("Erreur SQL:", error);
+      res.status(500).json({ error: "Erreur serveur!" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+})
 
 app.get('/api/deckDetails/:id', async (req, res) => {
   let conn;
@@ -550,6 +679,26 @@ app.delete('/api/market/:id', async (req, res) => {
     if (conn) conn.release();
   }
 })
+
+// Pour acheter une carte dans le marché
+app.post('/api/market/buy', checkToken, async (req, res) => {
+  const { saleId, quantity } = req.body;
+  const buyerId = req.user.id;
+  let conn;
+
+  try {
+    conn = await getConnection();
+    await conn.query('CALL acheter_carte(?, ?, ?)', [buyerId, saleId, quantity]);
+    res.status(200).json({ message: 'Achat effectué avec succès!' });
+  }
+  catch (err) {
+    console.error("Erreur lors de l'achat sur le marché", err);
+    res.status(500).json({ message: err.message || "Erreur du serveur lors de l'achat sur le marché" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+});
 
 // Lancement du serveur express sur le port 5000
 app.listen(5000, () => {
