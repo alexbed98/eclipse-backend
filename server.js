@@ -238,7 +238,13 @@ app.get('/api/collection/:id', async (req, res) => {
     const joueurId = req.params.id;
     conn = await getConnection();
     const rows = await conn.query(
-      'SELECT cartes.*, COALESCE(collections.quantite, 0) AS quantite from cartes LEFT JOIN collections ON cartes.id = collections.id_carte AND  collections.id_joueur = ?',
+      `SELECT 
+        cartes.*, 
+        series.nom AS nom_serie, 
+        COALESCE(collections.quantite, 0) AS quantite 
+      FROM cartes 
+      LEFT JOIN series ON cartes.id_serie = series.id 
+      LEFT JOIN collections ON cartes.id = collections.id_carte AND collections.id_joueur = ?`,
       [joueurId]
     )
       res.json(rows);
@@ -280,8 +286,15 @@ app.get('/api/inventory/details/:id/:joueurId', async (req, res) => {
     const joueurId = req.params.joueurId;
     conn = await getConnection();
     const rows = await conn.query(
-      `SELECT cartes.*, COALESCE(collections.quantite, 0) AS quantite  FROM cartes 
-      LEFT JOIN collections ON cartes.id = collections.id_carte AND collections.id_joueur = ?  WHERE id = ?`, [joueurId, carteId]
+      `SELECT 
+        cartes.*, 
+        series.nom AS nom_serie, 
+        COALESCE(collections.quantite, 0) AS quantite  
+      FROM cartes 
+      LEFT JOIN series ON cartes.id_serie = series.id 
+      LEFT JOIN collections ON cartes.id = collections.id_carte AND collections.id_joueur = ?  
+      WHERE cartes.id = ?`, 
+      [joueurId, carteId]
     )
     res.json(rows[0]);
   }
@@ -694,6 +707,48 @@ app.post('/api/market/buy', checkToken, async (req, res) => {
   catch (err) {
     console.error("Erreur lors de l'achat sur le marché", err);
     res.status(500).json({ message: err.message || "Erreur du serveur lors de l'achat sur le marché" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+});
+
+// Recuperer les notifs d'un joueur
+app.get('/api/notifications/:id_joueur', async (req, res) => {
+  const { id_joueur } = req.params;
+  let conn;
+
+  try {
+    conn = await getConnection();
+
+    const rows = await conn.query('SELECT * FROM notifications WHERE id_joueur = ? ORDER BY date DESC', [id_joueur]);
+
+    res.json(rows);
+  }
+  catch (err) {
+    console.error("Erreur SQL:", err);
+    res.status(500).json({ message: "Erreur du serveur lors de la récupération des notifications" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+});
+
+// Supprimer une notif par son id
+app.delete('/api/notifications/:id', async (req, res) => {
+  const notifId = req.params.id;
+  let conn;
+
+  try {
+    conn = await getConnection();
+
+    await conn.query('DELETE FROM notifications WHERE id = ?', [notifId]);
+
+    res.status(200).json({ message: "Notification supprimée avec succès" });
+  }
+  catch (err) {
+    console.error("Erreur SQL:", err);
+    res.status(500).json({ message: "Erreur du serveur lors de la suppression de la notification" });
   }
   finally {
     if (conn) conn.release();
