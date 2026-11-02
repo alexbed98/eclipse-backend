@@ -636,11 +636,14 @@ app.get('/api/market', async (req, res) => {
         c.nom AS card_name,
         c.id_rarete AS id_rarity,
         c.id_serie AS id_serie,
+        s.nom AS series_name,
         j.id AS id_seller,
         j.alias AS seller_username 
       FROM Marche m
       JOIN Cartes c ON m.id_carte = c.id
-      JOIN Joueurs j ON m.id_joueur = j.id;`
+      JOIN Series s ON c.id_serie = s.id
+      JOIN Joueurs j ON m.id_joueur = j.id
+      ORDER BY m.id DESC;`
     )
       res.json(rows);
   } catch (error){
