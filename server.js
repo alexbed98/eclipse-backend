@@ -361,7 +361,7 @@ app.get('/api/shop/:id/:currency/:idBooster', async (req, res) => {
 
       const cardsObtained = [];
         
-      for(let i = 0; i < 10; i++){
+      for(let i = 0; i < 5; i++){
 
         const number = Math.random();
           
