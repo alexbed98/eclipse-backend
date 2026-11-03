@@ -394,6 +394,58 @@ app.get('/api/shop/:id/:currency/:idBooster', async (req, res) => {
   }
 });
 
+// récupère toutes les cartes dans la bd - utilisée pour l'image d'un deck
+app.get('/api/decks/allCards', async (req, res) => {
+  let conn;
+
+  try{
+    conn = await getConnection();
+    const rows = await conn.query(
+      'SELECT * FROM cartes'
+    )
+    
+    res.json(rows);
+    
+  } catch (error){
+      console.error("Erreur SQL:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+})
+
+// changer l'image du deck
+app.get('/api/decks/deckPicture/:idDeck/:idCarte', async (req, res) => {
+    let conn;
+
+    const idDeck = req.params.idDeck;
+    const idCarte = req.params.idCarte;
+
+    try {
+        conn = await getConnection();
+
+        const image = `${idCarte}.png`;
+
+        const rows = await conn.query(
+            'UPDATE decks SET image = ? WHERE id = ?',
+            [image, idDeck]
+        );
+
+        res.status(200).json({
+            message: "L'image de couverture a été modifiée avec succès !"
+        });
+
+    } catch (error) {
+        console.error("Erreur SQL:", error);
+        res.status(500).json({ error: "Erreur serveur" });
+
+    } finally {
+        if (conn) conn.release();
+    }
+});
+
+
 // Récupération des decks du joueur
 app.get('/api/decks/:id', async (req,res) => {
   let conn;
