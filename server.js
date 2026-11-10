@@ -257,6 +257,7 @@ app.get('/api/collection/:id', async (req, res) => {
   }
 })
 
+// Récupère les différents booster dans la bd
 app.get('/api/shop', async (req, res) => {
   let conn;
 
@@ -330,6 +331,7 @@ app.get('/api/shop/:id', async (req, res) => {
   }
 });
 
+// achat d'un booster + ajout de cartes dans la collection
 app.get('/api/shop/:id/:currency/:idBooster', async (req, res) => {
   let conn;
   try{
@@ -456,7 +458,6 @@ app.get('/api/decks/deckPicture/:idDeck/:idCarte', async (req, res) => {
         if (conn) conn.release();
     }
 });
-
 
 // Récupération des decks du joueur
 app.get('/api/decks/:id', async (req,res) => {
@@ -652,6 +653,7 @@ app.get('/api/deckDetails/name/:id', async (req, res) => {
   }
 })
 
+// Récupérer les cartes de la collection du joueur.
 app.get('/api/deckDetails/:id', async (req, res) => {
   let conn;
 
