@@ -486,7 +486,11 @@ app.get('/api/deck/cartes/:idDeck', async (req, res) => {
   try{
     conn = await getConnection();
     const rows = await conn.query(
-      'SELECT decks_cartes.*, decks.nom FROM decks_cartes INNER JOIN decks ON decks_cartes.id_deck = decks.id WHERE id_deck = ?', [idDeck])
+      `SELECT decks_cartes.*, decks.nom, cartes.nom AS nom_carte
+      FROM decks_cartes
+      INNER JOIN decks ON decks_cartes.id_deck = decks.id
+      INNER JOIN cartes ON decks_cartes.id_carte = cartes.id
+      WHERE id_deck = ?`, [idDeck])
       res.json(rows);
   } catch(error){
       console.error("Erreur SQL:", error);
