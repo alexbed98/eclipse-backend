@@ -487,7 +487,7 @@ app.get('/api/deck/cartes/:idDeck', async (req, res) => {
   try{
     conn = await getConnection();
     const rows = await conn.query(
-      `SELECT decks_cartes.*, decks.nom, cartes.nom AS nom_carte
+      `SELECT decks_cartes.*, decks.nom, cartes.nom AS nom_carte, cartes.id_rarete AS id_rarete
       FROM decks_cartes
       INNER JOIN decks ON decks_cartes.id_deck = decks.id
       INNER JOIN cartes ON decks_cartes.id_carte = cartes.id
