@@ -58,7 +58,7 @@ app.get('/api/me', checkToken, async (req, res) => {
     conn = await getConnection();
 
     const rows = await conn.query(
-      'SELECT id, alias, prenom, nom, adresse_courriel, nbPiece, est_admin FROM Joueurs WHERE id = ?',
+      'SELECT id, alias, prenom, nom, adresse_courriel, nbpiece, est_admin FROM joueurs WHERE id = ?',
       [userId]
     );
 
@@ -92,7 +92,7 @@ app.post('/api/login', async (req, res) => {
 
     // chercher le joueur avec son courriel
     const rows = await conn.query(
-      'SELECT id, alias, nom, prenom, adresse_courriel, hash_mdp FROM Joueurs WHERE adresse_courriel = ?',
+      'SELECT id, alias, nom, prenom, adresse_courriel, hash_mdp FROM joueurs WHERE adresse_courriel = ?',
       [adresse_courriel]
     );
 
@@ -215,7 +215,7 @@ app.get('/api/joueurs/:id', async (req, res) => {
     conn = await getConnection();
 
     const rows = await conn.query(
-      'SELECT id, alias, nom, prenom, adresse_courriel FROM Joueurs WHERE id = ?',
+      'SELECT id, alias, nom, prenom, adresse_courriel FROM joueurs WHERE id = ?',
       [joueurId]
     );
 
@@ -316,7 +316,7 @@ app.get('/api/shop/:id', async (req, res) => {
     conn = await getConnection();
 
     const rows = await conn.query(
-      'SELECT nbPiece FROM Joueurs WHERE id = ?',
+      'SELECT nbpiece FROM joueurs WHERE id = ?',
       [joueurId]
     );
 
@@ -343,15 +343,15 @@ app.get('/api/shop/:id/:currency/:idBooster', async (req, res) => {
 
     // Partie concernant la gestion de currency du joueur
     const rows = await conn.query(
-      'SELECT nbPiece FROM Joueurs Where id = ?',
+      'SELECT nbpiece FROM joueurs WHERE id = ?',
       [joueurId]
     );
 
-    const joueurCurrency = rows[0].nbPiece
+    const joueurCurrency = rows[0].nbpiece
 
     if(joueurCurrency >= currency){
       const rowUpdated = await conn.query(
-        'UPDATE Joueurs SET nbPiece = nbPiece - ? WHERE id = ?',
+        'UPDATE joueurs SET nbpiece = nbpiece - ? WHERE id = ?',
         [currency, joueurId]
       );
 
@@ -665,7 +665,7 @@ app.get('/api/deckDetails/:id', async (req, res) => {
     const joueurId = req.params.id;
     conn = await getConnection();
     const rows = await conn.query(
-      'SELECT cartes.*, COALESCE(collections.quantite, 0) AS quantite from cartes INNER JOIN collections ON cartes.id = collections.id_carte AND  collections.id_joueur = ?',
+      'SELECT cartes.*, COALESCE(collections.quantite, 0) AS quantite FROM cartes INNER JOIN collections ON cartes.id = collections.id_carte AND collections.id_joueur = ?',
       [joueurId]
     )
       res.json(rows);
@@ -695,9 +695,9 @@ app.get('/api/market', async (req, res) => {
         c.id_serie AS id_serie,
         j.id AS id_seller,
         j.alias AS seller_username 
-      FROM Marche m
-      JOIN Cartes c ON m.id_carte = c.id
-      JOIN Joueurs j ON m.id_joueur = j.id;`
+      FROM marche m
+      JOIN cartes c ON m.id_carte = c.id
+      JOIN joueurs j ON m.id_joueur = j.id;`
     )
       res.json(rows);
   } catch (error){
