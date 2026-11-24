@@ -307,7 +307,6 @@ app.get('/api/inventory/details/:id/:joueurId', async (req, res) => {
   }
 });
 
-
 // Récupération du nombre de pièce d'un joueur
 app.get('/api/shop/:id', async (req, res) => {
   let conn;
@@ -806,6 +805,43 @@ app.delete('/api/notifications/:id', async (req, res) => {
   catch (err) {
     console.error("Erreur SQL:", err);
     res.status(500).json({ message: "Erreur du serveur lors de la suppression de la notification" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+});
+
+// Update les pieces après une victoire
+app.put('/api/joueurs/earnings', checkToken, async (req, res) => {
+  let conn;
+  try {
+    const { pieces } = req.body;
+    const joueurId = req.user.id;
+
+    if (!pieces || pieces <= 0) {
+      return res.status(400).json({ message: "Montant de pièces invalide" });
+    }
+
+    conn = await getConnection();
+
+    await conn.query(
+      'UPDATE joueurs SET nbpiece = nbpiece + ? WHERE id = ?',
+      [pieces, joueurId]
+    );
+
+    const rows = await conn.query(
+      'SELECT nbpiece FROM joueurs WHERE id = ?',
+      [joueurId]
+    );
+
+    res.status(200).json({
+      message: "Pièces ajoutées avec succès",
+      nbpiece: rows[0].nbpiece
+    });
+  }
+  catch (err) {
+    console.error("Erreur SQL /api/joueurs/earnings:", err);
+    res.status(500).json({ error: "Erreur serveur lors de l'ajout des pièces" });
   }
   finally {
     if (conn) conn.release();
